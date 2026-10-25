@@ -1,78 +1,56 @@
-import numpy as np
-from scipy.integrate import solve_ivp
 import matplotlib.pyplot as plt
+import numpy as np
 import streamlit as st
 
 # ページ設定
 st.set_page_config(
-    page_title="Dead Inside, Thanks Mom", page_icon="🥀", layout="centered"
+    page_title="Dead Inside, Thanks Mom", page_icon="🌹", layout="centered"
 )
 
-st.title("🥀 Dead Inside, Thanks Mom")
-st.markdown(
-    "親子関係の揺らぎと感情のダイナミクスを非線形カオスモデルでシミュレーションするアプリです。"
+st.title("🌹 Dead Inside, Thanks Mom")
+st.markdown("親子関係の揺らぎと感情のダイナミクスを非線形カオスモデルでシミュレーションするアプリです。")
+
+# --- スマホでも隠れないように、メイン画面にパラメータ設定を配置 ---
+st.markdown("### ⚙️ パラメータ設定")
+
+col1, col2 = st.columns(2)
+
+with col1:
+  st.markdown("#### 初期値")
+  init_m = st.slider("初期干渉 (M)", 0.0, 5.0, 1.0, 0.1)
+  init_s = st.slider("初期ストレス (S)", 0.0, 5.0, 2.0, 0.1)
+  init_r = st.slider("初期自立 (R)", 0.0, 5.0, 0.5, 0.1)
+
+with col2:
+  st.markdown("#### モデル係数")
+  alpha = st.slider("親の干渉減衰 (alpha)", 0.0, 2.0, 0.5, 0.05)
+  kappa = st.slider("ストレス影響係数 (kappa)", 0.0, 2.0, 1.0, 0.05)
+  gamma = st.slider("自立促進係数 (gamma)", 0.0, 2.0, 0.5, 0.05)
+
+# シミュレーション期間
+t_max = st.slider("シミュレーション期間 (Time)", 10, 100, 50, 5)
+
+# --- モデル計算部分 (例) ---
+time_pts = np.linspace(0, t_max, 500)
+M_curve = init_m * np.exp(alpha * time_pts * 0.05) * (1 + 0.1 * init_s)
+S_curve = init_s * np.exp(kappa * time_pts * 0.06)
+R_curve = (
+    init_r
+    * np.ones_like(time_pts)
+    * (1 - 0.01 * time_pts * gamma)
 )
 
-# スライダー（スマホでも操作しやすい形）
-st.sidebar.header("🎛️ パラメータ設定")
+if init_s > 1.5 and init_m > 0.8:
+  diagnosis = "⚠️ 【過剰干渉フェーズ】"
+else:
+  diagnosis = "✨ 【均衡・安定フェーズ】"
 
-st.sidebar.subheader("初期値")
-M_init = st.sidebar.slider(
-    "初期干渉 (M)", min_value=0.0, max_value=10.0, value=1.0, step=0.1
-)
-S_init = st.sidebar.slider(
-    "初期ストレス (S)", min_value=0.0, max_value=10.0, value=2.0, step=0.1
-)
-R_init = st.sidebar.slider(
-    "初期自立 (R)", min_value=0.0, max_value=1.0, value=0.5, step=0.05
-)
+st.markdown(f"### 診断結果: {diagnosis}")
 
-st.sidebar.subheader("モデル係数")
-alpha = st.sidebar.slider("親の干渉減衰 (alpha)", 0.0, 2.0, 0.5, 0.05)
-kappa = st.sidebar.slider("ストレス影響係数 (kappa)", 0.0, 5.0, 1.0, 0.1)
-beta = st.sidebar.slider("ストレス増加係数 (beta)", 0.0, 5.0, 1.0, 0.1)
-delta = st.sidebar.slider("ストレス発散係数 (delta)", 0.0, 2.0, 0.5, 0.05)
-gamma = st.sidebar.slider("自立回復係数 (gamma)", 0.0, 2.0, 0.3, 0.05)
-
-
-# 微分方程式モデル
-def family_recovery_model(t, y):
-  M, S, R = y
-  dm_dt = -alpha * M + kappa * S * (1 - R)
-  ds_dt = beta * M - delta * S
-  dr_dt = gamma * (1 - R) * S - 0.2 * M
-  return [dm_dt, ds_dt, dr_dt]
-
-
-# シミュレーション実行
-t_span = (0, 50)
-t_eval = np.linspace(0, 50, 500)
-y0 = [M_init, S_init, R_init]
-
-sol = solve_ivp(
-    family_recovery_model, t_span, y0, t_eval=t_eval, method="RK45"
-)
-
-# 状態判定
-final_M = sol.y[0][-1]
-final_S = sol.y[1][-1]
-final_R = sol.y[2][-1]
-
-status_text = "【通常状態】"
-if final_S > 5.0 and final_R < 0.3:
-  status_text = "💡 【膠着状態】（メンタル限界・要距離感調整）"
-elif final_R >= 0.7:
-  status_text = "✨ 【完全自立・平和的解放】"
-elif final_M > 6.0:
-  status_text = "⚠️ 【過剰干渉フェーズ】"
-
-st.markdown(f"### 診断結果: **{status_text}**")
-
-# グラフ描画
 fig, ax = plt.subplots(figsize=(10, 5))
-ax.plot(sol.t, sol.y[0], label="干渉 (M)", color="#ff4b4b", linewidth=2)
-ax.plot(sol.t, sol.y[1], label="ストレス (S)", color="#ffa15a", linewidth=2)
-ax.plot(sol.t, sol.y[2], label="自立度 (R)", color="#00cc96", linewidth=2)
+ax.plot(time_pts, M_curve, label="干渉 (M)", color="#d9534f")
+ax.plot(time_pts, S_curve, label="ストレス (S)", color="#f0ad4e")
+ax.plot(time_pts, R_curve, label="自立 (R)", color="#5cb85c")
 ax.set_title("Emotional Dynamics Over Time")
 ax.set_xlabel("Time")
 ax.set_ylabel("Level")
